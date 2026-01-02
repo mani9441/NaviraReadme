@@ -1,6 +1,9 @@
 import openai
+from dotenv import load_dotenv
+import os
 
-openai.api_key = "YOUR_GEMINI_API_KEY"
+
+openai.api_key = os.getenv("GEMINI_API_KEY")
 
 def call_gemini(prompt: str):
     response = openai.ChatCompletion.create(

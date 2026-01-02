@@ -5,3 +5,4 @@ PyGithub
 openai
 python-multipart
 markdown
+dotenv
