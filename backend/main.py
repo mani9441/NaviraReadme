@@ -2,8 +2,17 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from github_fetcher import fetch_files_from_github
 from drafts import drafts, accepted, skipped, FEATURES, call_gemini
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],  # frontend URLs
+    allow_credentials=True,
+    allow_methods=["*"],  # VERY IMPORTANT
+    allow_headers=["*"],
+)
 
 # Store repo files in memory
 repo_files = {}
@@ -28,10 +37,30 @@ def fetch_repo(repo: RepoRequest):
 def generate_draft(feature: str):
     if feature not in FEATURES:
         return {"error": "Feature not found"}
+
+    # ✅ If already generated, return cached draft
+    if feature in drafts:
+        return {
+            "draft": drafts[feature],
+            "cached": True
+        }
+
     files = repo_files.get("files", {})
-    draft = FEATURES[feature](files)
+    draft = FEATURES[feature](files)  # Gemini called ONCE
     drafts[feature] = draft
-    return {"draft": draft}
+
+    return {
+        "draft": draft,
+        "cached": False
+    }
+
+@app.get("/draft/{feature}")
+def get_draft(feature: str):
+    return {
+        "draft": drafts.get(feature, ""),
+        "exists": feature in drafts
+    }
+
 
 # Draft actions: accept / retry / skip
 @app.post("/draft-action/{feature}")
@@ -56,9 +85,17 @@ def draft_action(feature: str, action_data: DraftAction):
     return {"status": "ok", "draft": drafts[feature]}
 
 # Final README merge & polishing
+final_readme_cache = None
+
 @app.post("/finalize-readme")
 def finalize_readme():
+    global final_readme_cache
+
+    if final_readme_cache:
+        return {"readme": final_readme_cache}
+
     merged = "\n\n---\n\n".join([drafts[f] for f in accepted])
     final_prompt = f"Polish and merge these sections into a professional README:\n{merged}"
-    final_readme = call_gemini(final_prompt)
-    return {"readme": final_readme}
+    final_readme_cache = call_gemini(final_prompt)
+
+    return {"readme": final_readme_cache}

@@ -27,11 +27,11 @@ def generate_api_functions(files):
     return call_gemini(prompt)
 
 def generate_contribution(files):
-    prompt = "Generate contribution guide based on CONTRIBUTING.md if exists, else general instructions"
+    prompt = "Generate contribution guide based on CONTRIBUTING.md if exists, else general instructions only of those cases"
     return call_gemini(prompt)
 
 def generate_license(files):
-    prompt = "Summarize the LICENSE file if exists"
+    prompt = "Summarize the LICENSE file if exists else write MIT lisence"
     return call_gemini(prompt)
 
 FEATURES = {
