@@ -1,4 +1,4 @@
-from gemini_client import call_gemini
+from backend.gemini_client import call_gemini
 
 drafts = {}       # feature_name -> draft_content
 accepted = set()  # accepted drafts

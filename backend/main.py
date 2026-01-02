@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from github_fetcher import fetch_files_from_github
-from drafts import drafts, accepted, skipped, FEATURES, call_gemini
+from backend.drafts import drafts, accepted, skipped, FEATURES, call_gemini
 
 app = FastAPI()
 
