@@ -1,42 +1,53 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from github_fetcher import fetch_files_from_github
-from backend.drafts import drafts, accepted, skipped, FEATURES, call_gemini
+from drafts import drafts, accepted, skipped, FEATURES, call_gemini
 
 app = FastAPI()
+
+# Store repo files in memory
+repo_files = {}
 
 class RepoRequest(BaseModel):
     repo_url: str
     token: str = None
 
 class DraftAction(BaseModel):
-    action: str  # accept / retry / skip
+    action: str
     edited_content: str = None
 
+# Single-time repo fetch
+@app.post("/fetch-repo")
+def fetch_repo(repo: RepoRequest):
+    files = fetch_files_from_github(repo.repo_url, repo.token)
+    repo_files["files"] = files
+    return {"status": "ok", "features": list(FEATURES.keys())}
+
+# Generate draft for a feature
 @app.post("/generate-draft/{feature}")
-def generate_draft(feature: str, repo: RepoRequest):
+def generate_draft(feature: str):
     if feature not in FEATURES:
         return {"error": "Feature not found"}
-
-    files = fetch_files_from_github(repo.repo_url, repo.token)
+    files = repo_files.get("files", {})
     draft = FEATURES[feature](files)
     drafts[feature] = draft
     return {"draft": draft}
 
+# Draft actions: accept / retry / skip
 @app.post("/draft-action/{feature}")
 def draft_action(feature: str, action_data: DraftAction):
-    if feature not in drafts:
-        return {"error": "Draft not found"}
+    if feature not in FEATURES:
+        return {"error": "Feature not found"}
 
     action = action_data.action
-    content = action_data.edited_content or drafts[feature]
+    edited = action_data.edited_content
 
     if action == "accept":
-        drafts[feature] = content
+        drafts[feature] = edited or drafts.get(feature, "")
         accepted.add(feature)
     elif action == "retry":
-        # regenerate via Gemini
-        drafts[feature] = call_gemini(content)
+        files = repo_files.get("files", {})
+        drafts[feature] = FEATURES[feature](files)
     elif action == "skip":
         skipped.add(feature)
     else:
@@ -44,10 +55,10 @@ def draft_action(feature: str, action_data: DraftAction):
 
     return {"status": "ok", "draft": drafts[feature]}
 
+# Final README merge & polishing
 @app.post("/finalize-readme")
 def finalize_readme():
-    merged_content = "\n\n---\n\n".join([drafts[f] for f in accepted])
-    final_prompt = f"Polish and merge these sections into a professional README:\n{merged_content}"
+    merged = "\n\n---\n\n".join([drafts[f] for f in accepted])
+    final_prompt = f"Polish and merge these sections into a professional README:\n{merged}"
     final_readme = call_gemini(final_prompt)
     return {"readme": final_readme}
-
