@@ -6,3 +6,4 @@ openai
 python-multipart
 markdown
 dotenv
+groq
