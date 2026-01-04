@@ -28,3 +28,16 @@ export const getDraft = async (feature) => {
   const res = await axios.get(`${BASE_URL}/draft/${feature}`);
   return res.data;
 };
+
+
+export const saveFinalReadme = async (readmeContent) => {
+  const res = await axios.post(`${BASE_URL}/save-final-readme`, {
+    readme: readmeContent,
+  });
+  return res.data;
+};
+
+export const RefinalizeReadme = async () => {
+  const res = await axios.post(`${BASE_URL}/regenerate-readme`);
+  return res.data.readme;
+}

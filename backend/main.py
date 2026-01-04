@@ -92,10 +92,44 @@ def finalize_readme():
     global final_readme_cache
 
     if final_readme_cache:
-        return {"readme": final_readme_cache}
+        return {
+            "readme": final_readme_cache,
+            "cached": True
+        }
 
     merged = "\n\n---\n\n".join([drafts[f] for f in accepted])
-    final_prompt = f"Polish and merge these sections into a professional README:\n{merged}"
+    final_prompt = f"Polish and merge these sections into a professional and direct deployable README:\n{merged}"
     final_readme_cache = call_gemini(final_prompt)
 
-    return {"readme": final_readme_cache}
+    return {
+        "readme": final_readme_cache,
+        "cached": False
+    }
+
+@app.post("/regenrate-readme")
+def regenerate_readme():
+
+    merged = "\n\n---\n\n".join([drafts[f] for f in accepted])
+    final_prompt = f"Polish and merge these sections into a professional and direct deployable README:\n{merged}"
+    final_readme_cache = call_gemini(final_prompt)
+
+    return {
+        "readme": final_readme_cache,
+        "cached": False
+    }
+
+# In-memory store for final README
+final_readme_store = {"content": ""}
+
+
+class FinalReadme(BaseModel):
+    readme: str
+
+
+@app.post("/save-final-readme")
+def save_final_readme(data: FinalReadme):
+    """
+    Save the finalized README content sent from the frontend.
+    """
+    final_readme_store["content"] = data.readme
+    return {"status": "ok", "message": "Final README saved successfully."}

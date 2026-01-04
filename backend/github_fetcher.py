@@ -4,8 +4,19 @@ import tempfile
 from github import Github
 from github.GithubException import RateLimitExceededException
 from git import Repo
+from github import Github, GithubException
 
-ALLOWED_EXTENSIONS = (".py", ".md")
+ALLOWED_EXTENSIONS = (
+    ".py",
+    ".md",
+    "requirements.txt",
+    "pyproject.toml",
+    "setup.py",
+    "package.json",
+    "Dockerfile",
+    ".env.example",
+    "LICENSE",
+)
 
 
 def parse_repo_url(url: str):
@@ -13,34 +24,41 @@ def parse_repo_url(url: str):
     return parts[-2], parts[-1]
 
 
+# def fetch_files_from_github(repo_url: str, token: str = None):
+#     owner, repo_name = parse_repo_url(repo_url)
+
+#     try:
+#         g = Github(token) if token else Github()
+#         repo = g.get_repo(f"{owner}/{repo_name}")
+
+#         files_content = {}
+
+#         def traverse(contents):
+#             for item in contents:
+#                 if item.type == "dir":
+#                     traverse(repo.get_contents(item.path))
+#                 else:
+#                     if item.path.endswith(ALLOWED_EXTENSIONS):
+#                         files_content[item.path] = (
+#                             item.decoded_content.decode("utf-8", errors="ignore")
+#                         )
+
+#         traverse(repo.get_contents(""))
+#         print("✅ Files fetched via GitHub API")
+#         return files_content
+
+#     except GithubException as e:
+#         # Check if it’s a rate limit error
+#         if e.status == 403 and "rate limit exceeded" in str(e).lower():
+#             print("⚠️ GitHub rate limit hit — falling back to git clone")
+#             return fetch_via_git_clone(repo_url, token)
+#         else:
+#             # Reraise other exceptions
+#             raise
+
+
 def fetch_files_from_github(repo_url: str, token: str = None):
-    owner, repo_name = parse_repo_url(repo_url)
-
-    try:
-        # ─────────────── Attempt GitHub API ───────────────
-        g = Github(token) if token else Github()
-        repo = g.get_repo(f"{owner}/{repo_name}")
-
-        files_content = {}
-
-        def traverse(contents):
-            for item in contents:
-                if item.type == "dir":
-                    traverse(repo.get_contents(item.path))
-                else:
-                    if item.path.endswith(ALLOWED_EXTENSIONS):
-                        files_content[item.path] = (
-                            item.decoded_content.decode("utf-8", errors="ignore")
-                        )
-
-        traverse(repo.get_contents(""))
-        print("✅ Files fetched via GitHub API")
-        return files_content
-
-    except RateLimitExceededException:
-        print("⚠️ GitHub rate limit hit — falling back to git clone")
-        return fetch_via_git_clone(repo_url, token)
-
+    return fetch_via_git_clone(repo_url, token)
 
 # ───────────────────────── FALLBACK: GIT CLONE ─────────────────────────
 
@@ -56,7 +74,7 @@ def fetch_via_git_clone(repo_url: str, token: str = None):
             clone_url = repo_url.replace(
                 "https://", f"https://{token}@"
             )
-
+        print("getting from repo by clone")
         Repo.clone_from(clone_url, temp_dir)
 
         for root, _, files in os.walk(temp_dir):

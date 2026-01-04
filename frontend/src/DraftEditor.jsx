@@ -1,62 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import * as api from "./api";
 
-const DraftEditor = ({ feature, repo, nextFeature }) => {
-  const [draft, setDraft] = useState("");
+const DraftEditor = ({ feature, draft, setDraft, repo, nextFeature }) => {
   const [loading, setLoading] = useState(false);
 
-  /* ───────────────────────── LOAD DRAFT (CACHED) ───────────────────────── */
-
-  const loadDraft = async () => {
-    setLoading(true);
-
-    try {
-      const res = await api.getDraft(feature);
-
-      if (res.exists) {
-        // ✅ Use cached draft
-        setDraft(res.draft);
-      } else {
-        // ✅ Generate only ONCE
-        const generated = await repo.generateDraft(feature);
-        setDraft(generated);
-      }
-    } catch (err) {
-      console.error("Failed to load draft:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /* ───────────── LOAD DRAFT (ONLY IF EMPTY) ───────────── */
   useEffect(() => {
-    loadDraft();
+    if (!draft) {
+      setLoading(true);
+      repo.generateDraft(feature).finally(() => setLoading(false));
+    }
   }, [feature]);
-
-  /* ───────────────────────── ACTION HANDLERS ───────────────────────── */
 
   const handleAction = async (action) => {
     setLoading(true);
-
     try {
       const res = await repo.draftAction(feature, action, draft);
 
-      // Retry regenerates, others just move forward
-      if (action === "retry") {
-        setDraft(res.draft);
-      } else {
-        nextFeature();
-      }
-    } catch (err) {
-      console.error("Draft action failed:", err);
+      // Retry updates draft content
+      if (action === "retry") setDraft(res.draft);
+      else nextFeature();
     } finally {
       setLoading(false);
     }
   };
 
   if (loading) return <div>Loading draft...</div>;
-
-  /* ───────────────────────── UI ───────────────────────── */
 
   return (
     <div style={{ display: "flex", height: "80vh" }}>
@@ -83,7 +52,6 @@ const DraftEditor = ({ feature, repo, nextFeature }) => {
         }}
       >
         <h3>Editor</h3>
-
         <textarea
           style={{
             flex: 1,
@@ -95,7 +63,6 @@ const DraftEditor = ({ feature, repo, nextFeature }) => {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
         />
-
         <div
           style={{
             display: "flex",
